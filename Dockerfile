@@ -1,24 +1,27 @@
-FROM ubuntu:12.04
-MAINTAINER Masahji Stewart
+# pull base image
+FROM ubuntu
 
-# Tell debconf to run in non-interactive mode
-ENV DEBIAN_FRONTEND noninteractive
-
-# Make sure the repository information is up to date
+# install packaged dependencies
 RUN apt-get update
-RUN apt-get install -y g++
-RUN apt-get install -y libavformat-dev libavcodec-dev libavutil-dev wget
-RUN apt-get install -fy
+RUN apt-get -y install libavformat-dev libavcodec-dev libavutil-dev unzip g++ wget make nasm zlib1g-dev
 
-RUN apt-get install -y unzip
+# download and extract
+RUN wget https://github.com/ponchio/untrunc/archive/master.zip
+RUN unzip master.zip 
+WORKDIR /untrunc-master
+RUN wget https://github.com/libav/libav/archive/v12.3.zip && unzip v12.3.zip
 
-RUN mkdir /src
-WORKDIR /src
-RUN wget --no-check-certificate https://github.com/ponchio/untrunc/archive/master.zip
-RUN unzip master.zip
+# build libav
+WORKDIR /untrunc-master/libav-12.3/
+RUN ./configure && make
 
-WORKDIR /src/untrunc-master
-RUN g++ -o untrunc file.cpp main.cpp track.cpp atom.cpp mp4.cpp -L/usr/local/lib -lavformat -lavcodec -lavutil
-RUN mv untrunc /usr/bin/
+# build untrunc
+WORKDIR /untrunc-master
+RUN /usr/bin/g++ -o untrunc -I./libav-12.3 file.cpp main.cpp track.cpp atom.cpp mp4.cpp -L./libav-12.3/libavformat -lavformat -L./libav-12.3/libavcodec -lavcodec -L./libav-12.3/libavresample -lavresample -L./libav-12.3/libavutil -lavutil -lpthread -lz
 
-ENTRYPOINT ["untrunc"]
+# package / push the build artifact somewhere (dockerhub, .deb, .rpm, tell me what you want)
+# ... 
+
+# execution
+WORKDIR /untrunc-master
+ENTRYPOINT ["./untrunc"]
